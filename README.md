@@ -1,4 +1,4 @@
-# node-red-thesis
+# PS-SOURCE-CODE
 
 ## Install node-red and libraries
 - download and run the latest [LTS version of node.js](https://nodejs.org/dist/v20.10.0/node-v20.10.0-x64.msi)
