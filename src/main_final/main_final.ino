@@ -1,26 +1,26 @@
 #include <Arduino.h>
+#include <ArduinoJson.h>
+#include <SoftwareSerial.h>
 #include <ESP8266WiFi.h>
 #include <PubSubClient.h>
 #include <Ultrasonic.h>
 #include <FlowSensor.h>
 
-#define relay1 7 // solenoid - GH
-#define relay2 8 // solenoid - AQ
-#define relay3 9 // waterPump
+// esp8266 Rx=D2, Tx=D1
+SoftwareSerial nodemcu(4,5);
+
+#define relay1 14 // water pump
+#define relay2 12 // solenoid - GH
+#define relay3 13 // solenoid - AQ
 
 #define type YFS201
-#define pin 5 // D1 - ESP8266
+#define pin 2 // D4 - ESP8266
 
 FlowSensor Sensor(type, pin);
-unsigned long timebefore = 0; // Same type as millis()
-unsigned long reset = 0;
 
-// T - E
-Ultrasonic ultrasonic1(6, 10); 
-Ultrasonic ultrasonic2(4, 5);
 // Change the credentials below, so your ESP8266 connects to your router
-const char* ssid = "";
-const char* password = "";
+const char* ssid = "Sky Fiber - Loki";
+const char* password = "lokipogi";
 
 // MQTT broker credentials (set to NULL if not required)
 const char* MQTT_username = ""; 
@@ -36,12 +36,17 @@ PubSubClient client(espClient);
 bool relay3State = LOW;
 
 // Timers auxiliar variables
-long now = millis();
+long now;
 long lastMeasure = 0;
-long now2= millis();
+long now2;
 long lastMeasure2 = 0;
-long now3= millis();
+long now3;
 long lastMeasure3 = 0;
+unsigned long currentMillis;
+unsigned long previousMillis = 0;
+
+
+float level = 0;
 
 // This functions connects your ESP8266 to your router
 void setup_wifi() {
@@ -119,14 +124,14 @@ void reconnect() {
      YOU MIGHT NEED TO CHANGE THIS LINE, IF YOU'RE HAVING PROBLEMS WITH MQTT MULTIPLE CONNECTIONS
      To change the ESP device ID, you will have to give a new name to the ESP8266.
      Here's how it looks:
-       if (client.connect("ESP8266Client")) {
+       if (client.connect("ESP_WATER")) {
      You can do it like this:
        if (client.connect("ESP1_Office")) {
      Then, for the other ESP:
        if (client.connect("ESP2_Garage")) {
       That should solve your MQTT multiple connections problem
     */
-    if (client.connect("ESP8266Client", MQTT_username, MQTT_password)) {
+    if (client.connect("ESP_WATER", MQTT_username, MQTT_password)) {
       Serial.println("connected");  
       // Subscribe or resubscribe to a topic
       // You can subscribe to more topics (to control more LEDs in this example)
@@ -159,6 +164,8 @@ void setup() {
   digitalWrite(relay3, LOW);
   
   Serial.begin(115200);
+  nodemcu.begin(9600);
+  while(!Serial) continue;
   Sensor.begin(count);
   setup_wifi();
   client.setServer(mqtt_server, 1883);
@@ -171,15 +178,31 @@ void loop() {
     reconnect();
   }
   if(!client.loop())
-    client.connect("ESP8266Client", MQTT_username, MQTT_password);
-  now = millis();
+    client.connect("ESP_WATER", MQTT_username, MQTT_password);
+  
+  currentMillis = millis();
+  if((currentMillis - previousMillis >= 1000)) {
+    StaticJsonDocument<1000> doc;
+    DeserializationError error = deserializeJson(doc, nodemcu);
+  
+    while (error) {
+      Serial.println("Invalid JSON Object");
+      delay(500);
+      DeserializationError error = deserializeJson(doc, nodemcu);
+    }
 
-  // Publishes new distance every 6 seconds
+  Serial.println("JSON Object Received");
+  Serial.print("Received: ");
+  level = doc["level"];
+  Serial.println(level);
+  Serial.println("------------------------");
+  previousMillis = previousMillis + 1000;
+  }
+
+  // Publishes new level readings every 6 seconds
+  now = millis();
   if (now - lastMeasure > 6000) {
     lastMeasure = now;
-    float distance = 180 - (ultrasonic1.read() + ultrasonic2.read());
-    float level = (distance / 180) * 100; // level in percentage
-
     // Check if any reads failed and exit early (to try again).
     if (isnan(level)) {
       Serial.println("Failed to read level!");
@@ -192,16 +215,17 @@ void loop() {
     Serial.println("%");
   }
   
-  // send alert if water level is below 20%
+  // publish alert if water level is below 20%
+  now2= millis();
   if (now2 - lastMeasure2 > 300000) {
     lastMeasure2 = now2;
-    float distanceCrit = 180 - (ultrasonic1.read() + ultrasonic2.read());
-    float levelCrit = (distanceCrit / 180) * 100;
-    if (levelCrit < 20) {
-      client.publish("level/alert", String(levelCrit).c_str());
+    if (level < 20) {
+      client.publish("level/alert", String(level).c_str());
     }
   }
 
+  // publish flowrate reading every 1 second
+  now3= millis();
   if (now3 - lastMeasure3 > 1000) {
     lastMeasure3 = now3;
     float flowrate = Sensor.getFlowRate_m();
