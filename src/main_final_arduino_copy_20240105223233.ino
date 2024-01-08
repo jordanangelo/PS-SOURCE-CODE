@@ -1,21 +1,24 @@
 #include <SoftwareSerial.h>
 #include <Wire.h>
-#include <Ultrasonic.h>
 #include <ArduinoJson.h>
 
 // Arduino Rx=9, Tx=10
 SoftwareSerial nodemcu(9, 10);
 
-// (Trig, Echo)
-Ultrasonic ultrasonic1(5, 6); 
-Ultrasonic ultrasonic2(7, 8);
-
-float distance;
+float distance1;
+float distance2;
+float duration1;
+float duration2;
 float level;
 long now = millis();
 long lastMeasure = 0;
 
 void setup() {
+  pinMode(echoPin1, INPUT);
+  pinMode(echoPin2, INPUT);
+  pinMode(trigPin1, OUTPUT);
+  pinMode(trigPin2, OUTPUT);
+  
   Serial.begin(115200);
   nodemcu.begin(9600);
   delay(500);
@@ -25,9 +28,9 @@ void setup() {
 void loop() {
   if (now - lastMeasure > 1000) {
     lastMeasure = now;
+    distanceFunc();
     StaticJsonBuffer<1000> jsonBuffer;
     JsonObject& data = jsonBuffer.createObject();
-    distanceFunc();
 
     // assign data to a JSON object
     data["level"] = level;
@@ -38,7 +41,19 @@ void loop() {
 }
 
 void distanceFunc() {
-  distance = 180 - (ultrasonic1.read() + ultrasonic2.read());
+  digitalWrite(trigPin1, LOW);
+  digitalWrite(trigPin2, LOW);
+  delayMicroseconds(2);
+  digitalWrite(trigPin1, HIGH);
+  digitalWrite(trigPin2, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(trigPin1, LOW);
+  digitalWrite(trigPin2, LOW);
+
+  duration1 = pulseIn(echoPin1, HIGH);
+  duration2 = pulseIn(echoPin2, HIGH);
+  
+  distance = 180 - ((duration1 * 0.034 / 2) + (duration2 * 0.034 / 2));
   level = (distance / 180) * 100; // level in percentage
   Serial.print("Water Level: ");
   Serial.print(level);
