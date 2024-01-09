@@ -1,6 +1,6 @@
 #include <SoftwareSerial.h>
 #include <Wire.h>
-#include <ArduinoJson.h>
+#include <ArduinoJson.h> // use version 5.13.2
 
 #define trigPin1 5
 #define echoPin1 6
