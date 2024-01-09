@@ -2,11 +2,15 @@
 #include <Wire.h>
 #include <ArduinoJson.h>
 
+#define trigPin1 5
+#define echoPin1 6
+#define trigPin2 7
+#define echoPin2 8
+
 // Arduino Rx=9, Tx=10
 SoftwareSerial nodemcu(9, 10);
 
-float distance1;
-float distance2;
+float distance;
 float duration1;
 float duration2;
 float level;
