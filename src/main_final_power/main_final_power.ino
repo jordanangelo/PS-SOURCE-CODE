@@ -7,11 +7,11 @@
 
 const int numSamp = 1480;
 
-const char* ssid = "";
-const char* password = "";
+const char* ssid = "Jordan";
+const char* password = "jordanangelo";
 const char* MQTT_username = ""; 
 const char* MQTT_password = ""; 
-const char* mqtt_server = "192.168.0.25";
+const char* mqtt_server = "172.20.10.14";
 
 WiFiClient espClient;
 PubSubClient client(espClient);
@@ -24,7 +24,7 @@ unsigned long previousMillis = 0;
 int sampleCount = 0;
 float totalApparent;
 
-#define SENSITIVITY_1 453.25f
+#define SENSITIVITY_1 453.25f // change to actual order of sensors
 #define SENSITIVITY_2 401.0f
 #define SENSITIVITY_3 423.5f
 #define SENSITIVITY_4 501.5f
@@ -60,7 +60,7 @@ void reconnect() {
   while (!client.connected()) {
     Serial.print("Attempting MQTT connection...");
 
-    if (client.connect("ESP32Client", MQTT_username, MQTT_password)) {
+    if (client.connect("ESP_POWER", MQTT_username, MQTT_password)) {
       Serial.println("connected");  
       // Subscribe or resubscribe to a topic
     }
@@ -95,7 +95,7 @@ void loop() {
     reconnect();
   }
   if(!client.loop())
-    client.connect("ESP32Client", MQTT_username, MQTT_password);
+    client.connect("ESP_POWER", MQTT_username, MQTT_password);
   now = millis();
 
   if (now - lastMeasure > 1500) {
